@@ -1,0 +1,146 @@
+private static avtorizationEntities _context;
+public static avtorizationEntities GetContext()
+{
+    if (_context == null)
+        _context = new avtorizationEntities();
+
+    return _context;
+}
+_________________________
+
+//Основной метод программы
+public Successful_enter()
+{
+    InitializeComponent();
+    //DataContext = _currentOrder;
+    dgServices.ItemsSource = avtorizationEntities.GetContext().Услуги.ToList();
+    dgOrders.ItemsSource = avtorizationEntities.GetContext().Заказы.ToList();
+
+}
+__________________________
+
+//Метод строки поиска в DataGrid Заказов
+private void OrderSearchTextBox_TextChanged(object sender, TextChangedEventArgs e)
+{
+    string searchText = tbSearchOrder.Text.ToLower();
+    if (string.IsNullOrEmpty(searchText))
+    {
+        // Восстановление исходных данных в DataGrid, если строка поиска пустая
+        dgOrders.ItemsSource = avtorizationEntities.GetContext().Заказы.ToList();
+    }
+    else
+    {
+        // Фильтрация данных на основе строки поиска
+        switch (cbSearchOrder.Text)
+        {
+            case "Фамилии клиента":
+                var filteredItems = avtorizationEntities.GetContext().Заказы.ToList().Where(item => item.Клиенты.Фамилия.ToLower().Contains(searchText));
+                dgOrders.ItemsSource = filteredItems;
+                break;
+            case "Регистрационному знаку":
+                filteredItems = avtorizationEntities.GetContext().Заказы.ToList().Where(item => item.Автомобили.Регистрационный_номер.ToLower().Contains(searchText));
+                dgOrders.ItemsSource = filteredItems;
+                break;
+            case "Статусу заказа":
+                filteredItems = avtorizationEntities.GetContext().Заказы.ToList().Where(item => item.Статус.ToLower().Contains(searchText));
+                dgOrders.ItemsSource = filteredItems;
+                break;
+        }
+    }
+}
+__________Удалить______________
+private void DeleteOrderBut_Click(object sender, RoutedEventArgs e)
+{
+    var ordersForRemoving = dgOrders.SelectedItems.Cast<Заказы>().ToList();
+
+    if (MessageBox.Show($"Вы точно хотите {ordersForRemoving.Count()} элементов?", "Внимание", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+    {
+        try
+        {
+            avtorizationEntities.GetContext().Заказы.RemoveRange(ordersForRemoving);
+            avtorizationEntities.GetContext().SaveChanges();
+            MessageBox.Show("Данные удалены!");
+            Successful_enter successful_Enter = new Successful_enter();
+            this.Close();
+            successful_Enter.Show();
+
+        }
+        catch (Exception ex)
+        {
+            this.Close();
+            MessageBox.Show(ex.Message.ToString());
+
+        }
+    }
+}
+__________Добавить/редактировать_________
+private void AddOrderBut_Click(object sender, RoutedEventArgs e)
+{
+    AddEditOrder addEditOrder = new AddEditOrder(null);
+    addEditOrder.Show();
+    this.Close();
+}
+private void EditOrderBut_Click(object sender, RoutedEventArgs e)
+{
+    _currentOrder = (sender as Button).DataContext as Заказы;
+    if (_currentOrder.Статус == "Завершен")
+        MessageBox.Show("Данный заказ уже завершен. Редактирование невозможно.");
+    else
+    {
+        AddEditOrder addEditOrder_win = new AddEditOrder((sender as Button).DataContext as Заказы);
+        addEditOrder_win.Show();
+        this.Close();
+    }
+}
+__________Добавить_____________
+private Заказы _currentOrder = new Заказы();
+public AddEditOrder(Заказы selectedOrders)
+{
+    InitializeComponent();
+
+    if (selectedOrders != null)
+    {
+        _currentOrder = selectedOrders;
+        tbHeader.Text = "Редактировать заказ";
+    }
+    DataContext = _currentOrder;
+    cbAvto.ItemsSource = avtorizationEntities.GetContext().Автомобили.ToList();
+    cbClient.ItemsSource = avtorizationEntities.GetContext().Клиенты.ToList();
+}
+private void SaveButton_Click(object sender, RoutedEventArgs e)
+{
+    StringBuilder errors = new StringBuilder();
+    if (string.IsNullOrWhiteSpace(tbData.Text))
+        errors.AppendLine("Укажите дату");
+    if (string.IsNullOrWhiteSpace(_currentOrder.Оценка_стоимости))
+        errors.AppendLine("Укажите стоимость");
+    if (string.IsNullOrWhiteSpace(_currentOrder.Оценка_срока))
+        errors.AppendLine("Укажите срок");
+    if (string.IsNullOrWhiteSpace(_currentOrder.Статус))
+        errors.AppendLine("Укажите статус");
+    if (errors.Length > 0)
+    {
+        MessageBox.Show(errors.ToString());
+        return;
+    }
+    if (_currentOrder.Статус == "Завершен")
+    {
+        if (MessageBox.Show($"Вы уверены, что хотите завершить заказ?\nПосле, его редактирование будет невозможным!", "Внимание", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.No)
+            return;
+    }
+    if (_currentOrder.Код_заказа == 0)
+        avtorizationEntities.GetContext().Заказы.Add(_currentOrder);
+    try
+    {
+        avtorizationEntities.GetContext().SaveChanges();
+        MessageBox.Show("Информация сохранена.");
+        Successful_enter successful_Enter = new Successful_enter();
+        successful_Enter.Show();
+        this.Close();
+    }
+    catch (Exception ex)
+    {
+        MessageBox.Show(ex.Message.ToString());
+    }
+
+}
